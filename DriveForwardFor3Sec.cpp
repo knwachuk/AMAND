@@ -1,0 +1,131 @@
+// Include the servo library and create a Servo object (for steering)
+ #include <Servo.h>
+ Servo myservo;
+
+// Program options
+#define MEASURE_TIMING 0    // Measure and display pulse timing
+#define SWEEP_STEERING 0    // Sweep the stearing back and forth
+#define DRIVE_FORWARD  0    // Drive forward at a given speed
+#define DRIVE_BACKWARD 0    // Drive backward at a given speed
+#define DRIVE_FWD_BWD  1    // Drive forward then backward
+
+// Pin assignments
+int led = 13;         // LED on Teensy 3.0
+int btn = 17;         // Button to control start and stop of drive program
+int outSignal = 8;   // Output signal to control ESC (electronic speed controller)
+int inSignal = 8;    // Input signal from the remote receiver that controls ESC (learn signal pattern)
+int steering = 4;    // Output PWM signal to control steering
+int pos = 0;
+
+// Variables to control signal timing
+unsigned long refTime = 0;  // Starting reference time for the rising or falling edge of signal
+unsigned int initTime = 0;  // Initial system time reference to create delay before starting program (reverse requires a delay before starting
+unsigned int nLow = 8435;   // Duration of low outSignal for neutral signal
+unsigned int nHigh = 1494;  // Duration of high outSignal for neutral signal
+unsigned int aLow,aHigh;    // Low and high durations to control ESC (multiple of nLow and nHigh)
+bool highState = false;     // Current state of signal (low or high)
+unsigned long startDelay = 5000000; // Length of time (microseconds) to wait before string the program (needed for reverse signal)
+
+// Variables to control steering
+int wheelPos = 0;           // Wheel position as determined by servo postion (between 0 and 180)
+bool wpForward = true;      // Current direction of sweep
+unsigned int wpRefTime = 0; // Wheep position reference time
+unsigned wpDelay = 10000;      // Number of micro seconds to wait between adjustments
+
+// Variables for a generic wait timer
+int waitRefTime = 0;        // Reference timer for a generic wait timer
+int systemMode = 0;
+
+// the setup routine runs once when you press reset:
+void setup() {                
+  // Set output pins
+  pinMode(led, OUTPUT);     
+  pinMode(outSignal,OUTPUT);
+
+  // Set the pin to control the servo
+  myservo.attach(steering);
+  myservo.attach(4);
+
+  // Set the default pulse timings
+  aLow = nLow;
+  aHigh = nHigh;
+
+  // Start serial communication
+  Serial.begin(38400);
+}
+
+// Measure pulse timings from receiver
+void MeasurePulseTiming() {
+  Serial.print(pulseIn(outSignal,HIGH));
+  Serial.print(",");
+  Serial.println(pulseIn(outSignal,LOW));  
+}
+
+// Sweep steering back and forth
+
+
+// Drive forward at speed given (percentage of full power) after driveDelay micro seconds
+void DriveForward(int speed, int driveDelay) {
+
+
+  if (refTime == 0) refTime = micros();
+  if (initTime == 0) initTime = micros();
+  if (micros() - initTime > driveDelay) {
+    aLow = (1-speed/100.0) * nLow;
+    aHigh = (1+speed/100.0) * nHigh;
+  }
+
+  if (!highState) {
+    if (micros() - refTime > aLow) {
+      //Serial.print(micros() - refTime);
+      //Serial.print(",");
+      refTime = micros();
+      highState = !highState;
+      digitalWrite(outSignal,HIGH);
+    }
+  }
+  else {
+    if (micros() - refTime > aHigh) {
+      //Serial.println(micros() - refTime);
+      refTime = micros();
+      highState = !highState;
+      digitalWrite(outSignal,LOW);
+    }
+  }  
+
+}
+
+// Drive forward at speed given (percentage of full power) after driveDelay micro seconds
+void DriveBackward(int speed, int driveDelay) {
+  DriveForward(-speed,driveDelay);
+}
+
+// the loop routine runs over and over again forever:
+void loop() {
+
+  // Display outSignal lengths (micro seconds)
+  //if (MEASURE_TIMING) MeasurePulseTiming();
+
+  // Sweep the steering back and forth
+  //if (SWEEP_STEERING) SweepSteering();
+
+  // Drive vehicle forward at a set speed
+  //if (DRIVE_FORWARD) DriveForward(5,0);
+
+  // Drive vehicle backward at set speed after 3 second delay
+  //if (DRIVE_BACKWARD) DriveBackward(10,3000000);
+
+  // Drive vehicle forward and backwards
+  if (DRIVE_FWD_BWD) {
+    if (waitRefTime == 0) waitRefTime = micros();
+    if (micros() - waitRefTime > 5000000) {
+      systemMode++;
+      waitRefTime = micros();
+    }
+    switch (systemMode) {
+      case 0: DriveForward(5,0); break; Serial.println(systemMode);
+      myservo.write(15);
+     
+    }
+  }
+}
