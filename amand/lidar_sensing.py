@@ -14,7 +14,6 @@ All text above must be included in any redistribution.
 
 import os
 from math import cos, sin, pi, floor
-#from rplidar import RPLidarfrom rplidar import RPLidar
 from rplidar import RPLidar
 
 
